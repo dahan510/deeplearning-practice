@@ -113,3 +113,90 @@ def R2(x, y, w, b):
     못밪힌것 = np.sum((y - 예측(x,w,b))**2)
     평균으로찍기 = np.sum((y-y.mean())**2)
     return 1 - 못맞힌것/평균으로찍기
+
+r2 = R2(x, y, w_gd, b_gd)
+
+x2, y2 = x[:2], y[:2]
+w2 = (y2[1] - y2[0])/(x2[1]-x2[0])
+b2 = y2[0] - w2 *x2[0]
+예측2 = 예측(x2, w2, b2)
+
+#------
+특징이름 = ["공기온도", "회전수", "토크", "공구마모"]
+X  = df[특징이름].values.astype(float)
+y = df["공정온도"].values.astype(float)
+
+rng = np.random.RandomState(42)
+순서 = rng.permutation(len(X))
+
+n_train = int(len(X)*0.7)
+tr, te = (순서[:n_train], 순서[n_train:],)
+X_train, X_test = X[tr], X[te]
+y_train, y_test = (y[tr], y[te],)
+
+def 손실_원래눈금(X,y,w,b):
+    return np.mean((y-(X@w+b))**2)
+
+for lr in [0.1, 0.0000001]:
+    w0, b0 = np.zeros(4), 0.0
+    for _ in range(20):
+        gw = np.array([(손실_원래눈금(X_train, y_train, w0 +np.eye(4)[j]*1e-4, b0)
+                        - 손실_원래눈금(X_train, y_train, w0 - np.eye(4)[j]*1e-4, b0)
+        )/2e-4])
+
+        gb = (
+            손실_원래눈금(X_train, y_train, w0, b0 + 1e-4)
+            - 손실_원래눈금(X_train, y_train, w0, b0 - 1e-4)
+        ) / 2e-4
+        w0, b0 = w0 - lr *gw, b0-lr*gb
+
+mu = X_train.mean(axis = 0)
+sd = X_train.std(axis = 0)
+Z_train = (X_train - mu)/sd
+Z_test = (X_test - mu) / sd
+
+def 예측(Z, w, b):
+    return Z @ w + b 
+
+def 손실(Z, y, w, b):
+    return np.mean((y- 예측(Z, w, b)) **2)
+
+h = 0.0001
+
+def 기울기_밟아보기(Z, y, w, b):
+    gw = np.zeros(len(w))
+    for j in range(len(w)):
+        w_plus, w_minus = w.copy(), w.copy()
+        w_plus[j] += h
+        w_minus[j] -= h
+        gw[j] = (손실(Z, y, w_plus, b) - 손실(Z, y, w_minus, b)) /(2*h)
+    gb = (손실(Z, y, w, b+h) - 손실(Z, y, w, b-h))/(2*h)
+    return gw, gb
+
+def 학습(Z, y, lr= 0.1, epochs= 500):
+    w = np.zeros(Z.shape[1])
+    b = 0.0
+    for _ in range(epochs):
+        gw, gb = 기울기_밟아보기(Z, y, w, b)
+        w = w - lr * gw
+        b = b - lr *gb
+    return w, b
+
+w, b = 학습(Z_train, y_train)
+
+
+# 채점
+def MSE(y, yhat):
+    return np.mean((y - yhat)**2)
+
+def R2(y, yhat):
+    return 1 - np.sum((y-yhat)**2)/ np.sum((y- y.mean())**2)
+
+tr_pred = 예측(Z_train, w, b)
+te_pred = 예측(Z_test, w, b)
+
+w5, b5 = 학습(Z_train[:5], y_train[:5], epochs=2000)
+
+# 나누기 + 표준화
+
+고장idx = rng.permutation(np.where(y==1)[0])
