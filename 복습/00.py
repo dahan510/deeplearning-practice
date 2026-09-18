@@ -47,4 +47,69 @@ def 손실(x, y, w, b):
 
 
 def 기울기_밟아보기(x, y, w, b):
-    gw = 손실(x, t, w + h, b)
+    gw = (손실(x, y, w + h, b) - 손실(x, y, w - h, b)) / (2 * h)
+    gb = (손실(x, y, w, b + h) - 손실(x, y, w, b - h)) / (2 * h)
+    return gw, gb
+
+
+gw, gb = 기울기_밟아보기(x, y, 1.0, 9.0)
+
+lr = 0.00001
+w, b = 1.0, 9.0
+w = w - lr * gw
+b = b - lr * gb
+
+w, b = 1.0, 9.0
+with np.errstate(over="ignore", invalid="ignore"):
+    for _ in range(20):
+        gw, gb = 기울기_밟아보기(x, y, w, b)
+        w, b = (
+            (w - 0.001 * gw),
+            b - 0.001 * gb,
+        )  # 기울기의 반대 방향으로 w와 b를 조금 이동시켜 손실을 줄임
+
+m = x.mean()
+s = x.std()
+
+z = (x - m) / s
+
+
+def 학습(z, y, lr=0.1, epochs=300, 보여주기=True):
+    w, b = 0.0, 0.0
+    for epoch in range(epochs):
+        gw, gb = 기울기_밟아보기(z, y, w, b)
+        w = w - lr * gw
+        b = b - lr * gb
+        if 보여주기 and epoch in (0, 1, 2, 5, 10, 30, 100, 299):
+            print(
+                f"    epoch {epoch:3d}  w={w:7.3f}  b={b:8.3f}  손실 {손실(z, y, w, b):10.4f}"
+            )  # 자릿수 지정은 00 미리보기 ①
+    return w, b
+
+
+w_x, b_z = 학습(z, y)
+
+w_gd = w_x / s
+b_gd = b_z - w_z * m / s
+
+for lr in [0.001, 0.01, 0.1, 1.05]:
+    w_t, b_t = 학습(z, y, lr=lr, 보여주기 = False)
+    L = 손실(z, y, w_t, b_t)
+    if np.isnan(L) or L > 1e6:
+        판정 = "발산(튕겨 나감)"
+    elif L > 1.0:
+        판정 = "굼벵이 (300걸음으론 아직 멀었음)"
+    else:
+        판정 = "좋음 (바닥)"
+    print(f"    lr={lr:<6} → 손실 {L:>14.4f}  {판정}")
+
+w_공식 = np.sum((x - x.mean())* (y-y.mean())) / np.sum((x- x.mean())**2)
+b_공식 = y.mean() - w_공식 * x.mean()
+
+for 새온도 in [298.0, 300.0, 303.0]:
+    print({새온도} {예측(새온도, w_gd, b_gd)})
+
+def R2(x, y, w, b):
+    못밪힌것 = np.sum((y - 예측(x,w,b))**2)
+    평균으로찍기 = np.sum((y-y.mean())**2)
+    return 1 - 못맞힌것/평균으로찍기
