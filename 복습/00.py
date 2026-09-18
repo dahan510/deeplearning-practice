@@ -198,5 +198,41 @@ te_pred = 예측(Z_test, w, b)
 w5, b5 = 학습(Z_train[:5], y_train[:5], epochs=2000)
 
 # 나누기 + 표준화
-
+rng = np.random.RandomState(3)
 고장idx = rng.permutation(np.where(y==1)[0])
+정상idx = rng.permutation(np.where(y==0)[0])
+X_train, X_test, y_train, y_test = (
+    X[tr], 
+    X[te],
+    y[tr],
+    y[te],
+)
+
+mu, st = (
+    X_train.mean(axis = 0)
+    X_train.std(axis = 0)
+)
+
+# 직선값을 확률로 sigmoid
+def sigmoid(z):
+    return 1/ (1+np.exp(-z))
+
+def 확률(Z, w, b):
+    return sigmoid(Z @ w + b)
+
+
+# 확률용 손실 
+def 손실(Z, y, w, b):
+    p = np.clip(확률(Z, w, b), 1e-12, 1 - 1e-12)
+    return -np.mean(y * np.log(p) + (1-y) * np.log(1-p))
+
+# 학습 - 경사하강
+def 기울기_밟아보기(Z, y, w, b):
+    gw = np.zeros(len(w))
+    for  j in range(len(w)):
+        w1, w2 = w.copy(), w.copy()
+        w1[j] += h
+        w2[j] -= h
+        gw[j] = (손실(Z, y, w1, b) - 손실(Z, y, w2, b)) / (2*h)
+    gb = (손실(Z, y, w, b+h)- 손실(Z, y, w, b-h)) / (2*h)
+    return gw, gb
